@@ -1,5 +1,9 @@
 import { samplePulseEnvelope } from "./perceptualEncoding";
-import { PROPELLER_PRESET, type PropellerNoiseColor } from "./propellerPreset";
+import {
+  PROPELLER_PRESET,
+  type MechanicalPulsePreset,
+  type PropellerNoiseColor,
+} from "./propellerPreset";
 import { validateAcousticSignature } from "./signatureMath";
 import type { AcousticCode, AcousticSignatureEngineOptions } from "./types";
 
@@ -404,24 +408,28 @@ function buildVoice(
     );
   }
   if (signature[1] > 0) {
-    createWaterComponent(
+    createMechanicalPulseComponent(
       context,
       voiceMix,
-      noiseBank,
+      noiseBank.pink,
+      PROPELLER_PRESET.pump,
       signature[1],
       cycleDurationSeconds,
+      PROPELLER_PRESET.modulation.componentB.pulseShapePower,
       startTime,
       track,
       trackSource,
     );
   }
   if (signature[2] > 0) {
-    createCavitationComponent(
+    createMechanicalPulseComponent(
       context,
       voiceMix,
-      noiseBank,
+      noiseBank.pink,
+      PROPELLER_PRESET.blade,
       signature[2],
       cycleDurationSeconds,
+      PROPELLER_PRESET.modulation.componentC.pulseShapePower,
       startTime,
       track,
       trackSource,
@@ -561,6 +569,7 @@ function createHullComponent(
     context,
     repetitions,
     cycleDurationSeconds,
+    modulation.pulseShapePower,
     targets,
     startTime,
     track,
@@ -568,125 +577,55 @@ function createHullComponent(
   );
 }
 
-function createWaterComponent(
+function createMechanicalPulseComponent(
   context: AudioContext,
   destination: AudioNode,
-  noiseBank: NoiseBank,
+  noiseBuffer: AudioBuffer,
+  preset: MechanicalPulsePreset,
   repetitions: number,
   cycleDurationSeconds: number,
+  pulseShapePower: number,
   startTime: number,
   track: <Node extends AudioNode>(node: Node) => Node,
   trackSource: <Source extends ContinuousSource>(source: Source) => Source,
 ): void {
-  const preset = PROPELLER_PRESET.water;
-  const modulation = PROPELLER_PRESET.modulation.componentB;
-  const source = trackSource(createNoiseSource(context, noiseBank.pink));
+  const source = trackSource(createNoiseSource(context, noiseBuffer));
   const highpass = track(createFilter(context, "highpass"));
   const lowpass = track(createFilter(context, "lowpass"));
-  const gain = track(context.createGain());
+  const fundamental = trackSource(context.createOscillator());
+  const fundamentalGain = track(context.createGain());
+  const overtone = trackSource(context.createOscillator());
+  const overtoneGain = track(context.createGain());
+  const componentGain = track(context.createGain());
 
   highpass.frequency.setValueAtTime(preset.highpassHz, startTime);
-  lowpass.frequency.setValueAtTime(
-    preset.lowpassHz - modulation.filterDepthHz,
-    startTime,
-  );
+  lowpass.frequency.setValueAtTime(preset.lowpassFloorHz, startTime);
   lowpass.Q.setValueAtTime(preset.lowpassQ, startTime);
-  gain.gain.setValueAtTime(preset.gain - modulation.gainDepth, startTime);
+  fundamental.type = "triangle";
+  fundamental.frequency.setValueAtTime(preset.fundamentalHz, startTime);
+  fundamentalGain.gain.setValueAtTime(preset.fundamentalGain, startTime);
+  overtone.type = "sine";
+  overtone.frequency.setValueAtTime(preset.overtoneHz, startTime);
+  overtoneGain.gain.setValueAtTime(preset.overtoneGain, startTime);
+  componentGain.gain.setValueAtTime(preset.gain * preset.floorScale, startTime);
 
   source.connect(highpass);
   highpass.connect(lowpass);
-  lowpass.connect(gain);
-  gain.connect(destination);
-
-  createWaterResonances(context, source, destination, startTime, track);
-
-  createEnvelopeModulator(
-    context,
-    repetitions,
-    cycleDurationSeconds,
-    [
-      [gain.gain, modulation.gainDepth * 2],
-      [lowpass.frequency, modulation.filterDepthHz * 2],
-    ],
-    startTime,
-    track,
-    trackSource,
-  );
-  createSineModulator(
-    context,
-    PROPELLER_PRESET.modulation.organicRateHz,
-    [[gain.gain, PROPELLER_PRESET.modulation.organicWaterGainDepth]],
-    startTime,
-    track,
-    trackSource,
-  );
-}
-
-function createWaterResonances(
-  context: AudioContext,
-  source: AudioNode,
-  destination: AudioNode,
-  startTime: number,
-  track: <Node extends AudioNode>(node: Node) => Node,
-): void {
-  const preset = PROPELLER_PRESET.resonance;
-  const first = track(createFilter(context, "bandpass"));
-  const firstGain = track(context.createGain());
-  const second = track(createFilter(context, "bandpass"));
-  const secondGain = track(context.createGain());
-
-  first.frequency.setValueAtTime(preset.firstHz, startTime);
-  first.Q.setValueAtTime(preset.firstQ, startTime);
-  firstGain.gain.setValueAtTime(preset.firstGain, startTime);
-  second.frequency.setValueAtTime(preset.secondHz, startTime);
-  second.Q.setValueAtTime(preset.secondQ, startTime);
-  secondGain.gain.setValueAtTime(preset.secondGain, startTime);
-
-  source.connect(first);
-  source.connect(second);
-  first.connect(firstGain);
-  second.connect(secondGain);
-  firstGain.connect(destination);
-  secondGain.connect(destination);
-}
-
-function createCavitationComponent(
-  context: AudioContext,
-  destination: AudioNode,
-  noiseBank: NoiseBank,
-  repetitions: number,
-  cycleDurationSeconds: number,
-  startTime: number,
-  track: <Node extends AudioNode>(node: Node) => Node,
-  trackSource: <Source extends ContinuousSource>(source: Source) => Source,
-): void {
-  const preset = PROPELLER_PRESET.cavitation;
-  const modulation = PROPELLER_PRESET.modulation.componentC;
-  const source = trackSource(createNoiseSource(context, noiseBank.white));
-  const bandpass = track(createFilter(context, "bandpass"));
-  const lowpass = track(createFilter(context, "lowpass"));
-  const gain = track(context.createGain());
-
-  bandpass.frequency.setValueAtTime(
-    preset.bandpassHz - modulation.filterDepthHz,
-    startTime,
-  );
-  bandpass.Q.setValueAtTime(preset.bandpassQ, startTime);
-  lowpass.frequency.setValueAtTime(preset.lowpassHz, startTime);
-  gain.gain.setValueAtTime(preset.gain - modulation.gainDepth, startTime);
-
-  source.connect(bandpass);
-  bandpass.connect(lowpass);
-  lowpass.connect(gain);
-  gain.connect(destination);
+  lowpass.connect(componentGain);
+  fundamental.connect(fundamentalGain);
+  fundamentalGain.connect(componentGain);
+  overtone.connect(overtoneGain);
+  overtoneGain.connect(componentGain);
+  componentGain.connect(destination);
 
   createEnvelopeModulator(
     context,
     repetitions,
     cycleDurationSeconds,
+    pulseShapePower,
     [
-      [gain.gain, modulation.gainDepth * 2],
-      [bandpass.frequency, modulation.filterDepthHz * 2],
+      [componentGain.gain, preset.gain * (1 - preset.floorScale)],
+      [lowpass.frequency, preset.lowpassHz - preset.lowpassFloorHz],
     ],
     startTime,
     track,
@@ -698,13 +637,14 @@ function createEnvelopeModulator(
   context: AudioContext,
   repetitions: number,
   cycleDurationSeconds: number,
+  pulseShapePower: number,
   targets: readonly (readonly [AudioParam, number])[],
   startTime: number,
   track: <Node extends AudioNode>(node: Node) => Node,
   trackSource: <Source extends ContinuousSource>(source: Source) => Source,
 ): void {
   const source = trackSource(context.createBufferSource());
-  source.buffer = createEnvelopeBuffer(context, repetitions);
+  source.buffer = createEnvelopeBuffer(context, repetitions, pulseShapePower);
   source.loop = true;
   source.playbackRate.setValueAtTime(1 / cycleDurationSeconds, startTime);
 
@@ -719,6 +659,7 @@ function createEnvelopeModulator(
 function createEnvelopeBuffer(
   context: AudioContext,
   repetitions: number,
+  pulseShapePower: number,
 ): AudioBuffer {
   const length = Math.round(context.sampleRate);
   const buffer = context.createBuffer(1, length, context.sampleRate);
@@ -728,7 +669,7 @@ function createEnvelopeBuffer(
       repetitions,
       1,
       index / samples.length,
-      PROPELLER_PRESET.modulation.pulseShapePower,
+      pulseShapePower,
     );
   }
   return buffer;

@@ -153,8 +153,8 @@ function expectedCombinedEnvelope(
         (1 - PROPELLER_PRESET.modulation.componentA.bedFloorScale) +
       PROPELLER_PRESET.hull.flowGain *
         (1 - PROPELLER_PRESET.hull.flowFloorScale),
-    PROPELLER_PRESET.modulation.componentB.gainDepth * 2,
-    PROPELLER_PRESET.modulation.componentC.gainDepth * 2,
+    PROPELLER_PRESET.pump.gain * (1 - PROPELLER_PRESET.pump.floorScale),
+    PROPELLER_PRESET.blade.gain * (1 - PROPELLER_PRESET.blade.floorScale),
   ] as const;
   let activeWeight = 0;
   let combinedLevel = 0;
@@ -171,7 +171,12 @@ function expectedCombinedEnvelope(
         repetitions,
         cycleDuration,
         elapsedSeconds,
-        PROPELLER_PRESET.modulation.pulseShapePower,
+        [
+          PROPELLER_PRESET.modulation.componentA.pulseShapePower,
+          PROPELLER_PRESET.modulation.componentB.pulseShapePower,
+          PROPELLER_PRESET.modulation.componentC.pulseShapePower,
+        ][componentIndex] ??
+          PROPELLER_PRESET.modulation.componentA.pulseShapePower,
       );
   }
   return activeWeight === 0 ? 0 : combinedLevel / activeWeight;

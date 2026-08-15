@@ -11,6 +11,10 @@ changes it after a listening test.
 - The values express a ratio between the three repetition frequencies. Common
   multiples therefore preserve identity.
 - Prefer small primitive integer ratios because they are easier to count.
+- The signature identifies a vessel class, not an individual hull. Every ship
+  or submarine of the same class shares the same unordered three-number ratio.
+- Individual vessels may differ in timbre, machinery noise, condition, and
+  absolute playback speed, but those variations must not alter the class ratio.
 
 ## Motion
 
@@ -25,10 +29,9 @@ belong to a submarine or large vessel: engine room, propeller or blade,
 rotating machinery, or a nuclear-submarine pump. Avoid decorative water,
 musical, synthetic-whistle, and unrelated impact sounds.
 
-Component A in the current prototype is the accepted reference checkpoint. Do
-not retune A without a new listening test. Components B and C are not yet
-approved: they must be brought into the same mechanical propulsion family
-before the complete three-component sound can become canonical.
+All three components in the current prototype are the accepted reference
+checkpoint. Do not retune A, B, or C without a new listening test and explicit
+user approval.
 
 ## Prototype-only isolation
 

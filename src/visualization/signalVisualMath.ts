@@ -25,24 +25,30 @@ export function sampleAcousticSignatureVisual(
     throw new RangeError("Sample index must be a non-negative safe integer.");
   }
 
-  const envelopes = validatedCode.map((repetitions) =>
-    repetitions === 0
-      ? 0
-      : samplePulseEnvelope(
-          repetitions,
-          cycleDuration,
-          elapsedSeconds,
-          PROPELLER_PRESET.modulation.pulseShapePower,
-        ),
-  );
+  const pulseShapePowers = [
+    PROPELLER_PRESET.modulation.componentA.pulseShapePower,
+    PROPELLER_PRESET.modulation.componentB.pulseShapePower,
+    PROPELLER_PRESET.modulation.componentC.pulseShapePower,
+  ] as const;
+  const envelopes = validatedCode.map((repetitions, componentIndex) => {
+    if (repetitions === 0) {
+      return 0;
+    }
+    return samplePulseEnvelope(
+      repetitions,
+      cycleDuration,
+      elapsedSeconds,
+      pulseShapePowers[componentIndex] ?? pulseShapePowers[0],
+    );
+  });
   const modulationWeights = [
     PROPELLER_PRESET.modulation.componentA.gainDepth * 2 +
       PROPELLER_PRESET.bed.gain *
         (1 - PROPELLER_PRESET.modulation.componentA.bedFloorScale) +
       PROPELLER_PRESET.hull.flowGain *
         (1 - PROPELLER_PRESET.hull.flowFloorScale),
-    PROPELLER_PRESET.modulation.componentB.gainDepth * 2,
-    PROPELLER_PRESET.modulation.componentC.gainDepth * 2,
+    PROPELLER_PRESET.pump.gain * (1 - PROPELLER_PRESET.pump.floorScale),
+    PROPELLER_PRESET.blade.gain * (1 - PROPELLER_PRESET.blade.floorScale),
   ] as const;
   let activeWeight = 0;
   let combinedLevel = 0;

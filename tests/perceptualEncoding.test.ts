@@ -80,13 +80,17 @@ describe("propeller carrier separation", () => {
       flowHighpassHz: 58,
       flowLowpassHz: 460,
     });
-    expect(PROPELLER_PRESET.water).toMatchObject({
-      highpassHz: 24,
-      lowpassHz: 760,
+    expect(PROPELLER_PRESET.pump).toMatchObject({
+      highpassHz: 82,
+      lowpassHz: 560,
+      fundamentalHz: 92,
+      overtoneHz: 138,
     });
-    expect(PROPELLER_PRESET.cavitation).toMatchObject({
-      bandpassHz: 1_260,
-      lowpassHz: 2_650,
+    expect(PROPELLER_PRESET.blade).toMatchObject({
+      highpassHz: 145,
+      lowpassHz: 680,
+      fundamentalHz: 165,
+      overtoneHz: 248,
     });
   });
 
@@ -114,7 +118,7 @@ function components(
 
 function component(
   repetitions: number,
-  _componentIndex: 0 | 1 | 2,
+  componentIndex: 0 | 1 | 2,
   elapsedSeconds: number,
 ): number {
   if (repetitions === 0) {
@@ -124,6 +128,12 @@ function component(
     repetitions,
     CYCLE_DURATION,
     elapsedSeconds,
-    PROPELLER_PRESET.modulation.pulseShapePower,
+    (
+      [
+        PROPELLER_PRESET.modulation.componentA.pulseShapePower,
+        PROPELLER_PRESET.modulation.componentB.pulseShapePower,
+        PROPELLER_PRESET.modulation.componentC.pulseShapePower,
+      ] as const
+    )[componentIndex],
   );
 }
