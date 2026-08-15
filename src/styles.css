@@ -1,0 +1,126 @@
+:root {
+  color: #e8ecef;
+  background: #101416;
+  --scope-background: #0b1113;
+  --scope-signal: #b5cbc7;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button {
+  min-width: 7rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #778187;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #d4dadd;
+}
+
+button:focus-visible,
+.selector:focus-visible {
+  outline: 2px solid #e8ecef;
+  outline-offset: 4px;
+}
+
+#prototype {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem;
+}
+
+.prototype-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.65rem;
+}
+
+.playback-controls {
+  display: flex;
+  gap: 1rem;
+}
+
+.signature-scope {
+  display: block;
+  width: min(36rem, calc(100vw - 3rem));
+  height: 7.5rem;
+  background: var(--scope-background);
+}
+
+.selectors {
+  display: flex;
+  gap: clamp(1.5rem, 8vw, 4rem);
+}
+
+.selector {
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+}
+
+.arrow {
+  min-width: 3rem;
+  min-height: 2.5rem;
+  padding: 0.4rem;
+  border-color: transparent;
+  font-size: 1rem;
+}
+
+.selector-value {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.answer-controls {
+  display: flex;
+  gap: 1rem;
+}
+
+.answer-controls button {
+  min-width: 6rem;
+}
+
+.result {
+  min-height: 1.5em;
+  color: #f2f4f5;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+@media (max-width: 420px) {
+  #prototype {
+    padding: 1.25rem;
+  }
+
+  .playback-controls {
+    width: 100%;
+  }
+
+  .playback-controls button {
+    min-width: 0;
+    flex: 1;
+  }
+}
