@@ -20,6 +20,7 @@ import {
   propulsionStartleStrength,
   type MarineLifeDisturbanceState,
 } from "./MarineLifeDisturbance";
+import { publicAssetPath } from "./PublicAssetPath";
 
 export type NorthSeaMegafaunaSpecies =
   "orca" | "baleen-whale" | "seal" | "jellyfish" | "harbour-porpoise";
@@ -73,8 +74,8 @@ interface StartleProfile {
   readonly runningAccelerationMetersPerSecondSquared: number;
 }
 
-const DRACO_DECODER_PATH = "/assets/draco/";
-const MODEL_DIRECTORY = "/assets/models/marine-life";
+const DRACO_DECODER_PATH = publicAssetPath("assets/draco/");
+const MODEL_DIRECTORY = publicAssetPath("assets/models/marine-life");
 const FORWARD = new Vector3(0, 0, 1);
 const MAX_RENDER_DISTANCE_METERS = 240;
 const FUTURE_PATH_SAMPLE_SECONDS = 0.35;

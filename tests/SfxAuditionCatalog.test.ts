@@ -1,5 +1,6 @@
 import {
   closeSync,
+  existsSync,
   fstatSync,
   openSync,
   readFileSync,
@@ -17,6 +18,12 @@ import {
 } from "../src/ui/sfxAuditionCatalog";
 
 const RESEARCH_DIRECTORY = "assets/research/submarine-sfx-2026-08-17";
+const RESEARCH_MASTERS_DIRECTORY = join(
+  process.cwd(),
+  RESEARCH_DIRECTORY,
+  "masters/usc-sound-effect-archive",
+);
+const HAS_RESEARCH_MASTERS = existsSync(RESEARCH_MASTERS_DIRECTORY);
 
 describe("numbered research SFX audition catalog", () => {
   it("maps all 37 manifest masters to stable numbers and unique paths", () => {
@@ -40,19 +47,22 @@ describe("numbered research SFX audition catalog", () => {
     }
   });
 
-  it("points only to verified mono 48 kHz 24-bit PCM WAV masters", () => {
-    for (const item of SFX_AUDITION_ITEMS) {
-      const filePath = join(process.cwd(), item.assetPath.slice(1));
-      const wave = readWaveHeader(filePath);
+  it.skipIf(!HAS_RESEARCH_MASTERS)(
+    "points only to verified mono 48 kHz 24-bit PCM WAV masters",
+    () => {
+      for (const item of SFX_AUDITION_ITEMS) {
+        const filePath = join(process.cwd(), item.assetPath.slice(1));
+        const wave = readWaveHeader(filePath);
 
-      expect(wave.fileBytes).toBeGreaterThan(0);
-      expect(wave.format).toBe(1);
-      expect(wave.channels).toBe(1);
-      expect(wave.sampleRate).toBe(48_000);
-      expect(wave.bitDepth).toBe(24);
-      expect(wave.durationSeconds).toBeCloseTo(item.durationSeconds, 3);
-    }
-  });
+        expect(wave.fileBytes).toBeGreaterThan(0);
+        expect(wave.format).toBe(1);
+        expect(wave.channels).toBe(1);
+        expect(wave.sampleRate).toBe(48_000);
+        expect(wave.bitDepth).toBe(24);
+        expect(wave.durationSeconds).toBeCloseTo(item.durationSeconds, 3);
+      }
+    },
+  );
 
   it("creates a numbered report with keep, reject, and undecided sections", () => {
     const decisions: Record<string, SfxAuditionDecision> = {

@@ -31,6 +31,7 @@ import {
   absoluteBearingFromRelative,
   PassiveSonarRing,
 } from "./PassiveSonarRing";
+import { publicAssetPath } from "./PublicAssetPath";
 import type { SubmarineState } from "./SubmarineDynamics";
 
 const AKULA_LENGTH_METERS = 110;
@@ -254,7 +255,7 @@ export class AkulaVehicle {
 
   public async initialize(): Promise<void> {
     const gltf = await new GLTFLoader().loadAsync(
-      "/assets/models/akula/akula.glb",
+      publicAssetPath("assets/models/akula/akula.glb"),
     );
     const model = gltf.scene;
     model.updateMatrixWorld(true);

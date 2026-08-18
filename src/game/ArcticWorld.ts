@@ -55,6 +55,7 @@ import {
 import { NorthSeaSurfaceActivity } from "./NorthSeaSurfaceActivity";
 import { OceanSurface } from "./OceanSurface";
 import type { OceanSurfaceSample } from "./OceanSpectrum";
+import { publicAssetPath } from "./PublicAssetPath";
 import {
   underwaterTargetAmount,
   underwaterVisibilityMeters,
@@ -86,10 +87,10 @@ const FLOE_PLACEMENTS = [
 ] as const;
 
 const ICEBERG_ASSET_PATHS = [
-  "/assets/models/icebergs/boulder_01_ice.glb",
-  "/assets/models/icebergs/namaqualand_boulder_03_ice.glb",
-  "/assets/models/icebergs/namaqualand_boulder_04_ice.glb",
-  "/assets/models/icebergs/namaqualand_boulder_06_ice.glb",
+  publicAssetPath("assets/models/icebergs/boulder_01_ice.glb"),
+  publicAssetPath("assets/models/icebergs/namaqualand_boulder_03_ice.glb"),
+  publicAssetPath("assets/models/icebergs/namaqualand_boulder_04_ice.glb"),
+  publicAssetPath("assets/models/icebergs/namaqualand_boulder_06_ice.glb"),
 ] as const;
 
 const NORMAL_FOG_COLOR = new Color(0x061d27);
@@ -852,17 +853,29 @@ export class ArcticWorld {
       snowRough,
     ] = await Promise.all([
       loader.loadAsync(
-        "/assets/textures/rocks-ground-06/rocks_ground_06_diff_1k.jpg",
+        publicAssetPath(
+          "assets/textures/rocks-ground-06/rocks_ground_06_diff_1k.jpg",
+        ),
       ),
       loader.loadAsync(
-        "/assets/textures/rocks-ground-06/rocks_ground_06_nor_gl_1k.jpg",
+        publicAssetPath(
+          "assets/textures/rocks-ground-06/rocks_ground_06_nor_gl_1k.jpg",
+        ),
       ),
       loader.loadAsync(
-        "/assets/textures/rocks-ground-06/rocks_ground_06_arm_1k.jpg",
+        publicAssetPath(
+          "assets/textures/rocks-ground-06/rocks_ground_06_arm_1k.jpg",
+        ),
       ),
-      loader.loadAsync("/assets/textures/snow-02/snow_02_diff_1k.jpg"),
-      loader.loadAsync("/assets/textures/snow-02/snow_02_nor_gl_1k.jpg"),
-      loader.loadAsync("/assets/textures/snow-02/snow_02_rough_1k.jpg"),
+      loader.loadAsync(
+        publicAssetPath("assets/textures/snow-02/snow_02_diff_1k.jpg"),
+      ),
+      loader.loadAsync(
+        publicAssetPath("assets/textures/snow-02/snow_02_nor_gl_1k.jpg"),
+      ),
+      loader.loadAsync(
+        publicAssetPath("assets/textures/snow-02/snow_02_rough_1k.jpg"),
+      ),
     ]);
 
     for (const texture of [groundDiffuse, groundNormal, groundArm]) {
@@ -892,7 +905,7 @@ export class ArcticWorld {
 
   private async loadBoulderField(): Promise<void> {
     const gltf = await new GLTFLoader().loadAsync(
-      "/assets/models/rock-07/rock_07_1k.glb",
+      publicAssetPath("assets/models/rock-07/rock_07_1k.glb"),
     );
     const sourceRocks: Mesh[] = [];
     gltf.scene.traverse((object) => {
