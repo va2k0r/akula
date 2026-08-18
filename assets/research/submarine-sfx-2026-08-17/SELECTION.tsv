@@ -1,0 +1,38 @@
+number	asset_id	decision	title
+01	usc-g45-10	reject	Battaglia a bordo del sommergibile
+02	usc-g45-11	keep	Carica di profondità
+03	usc-g45-12	keep	Esplosioni da missile
+04	usc-g45-13	keep	Lancio siluro — impulso interno
+05	usc-g45-14	keep	Esplosione del siluro
+06	usc-g45-16	reject	Compressore di bordo
+07	usc-g45-20	keep	Motore del sommergibile sott’acqua
+08	usc-g45-21	reject	Interno — ambiente generale
+09	usc-g45-24	reject	Sala macchine — ambiente
+10	usc-g45-26	reject	Avviamento del motore
+11	usc-g45-28	keep	Annunciatore di bordo
+12	usc-g45-30	keep	Apertura di un portello pesante
+13	usc-g45-31	keep	Scia e turbolenza sott’acqua
+14	usc-g45-33	reject	Sala siluri prodiera — ambiente
+15	usc-g45-34	keep	Lancio siluri — riverbero interno
+16	usc-g45-35	keep	Esplosioni subacquee lontane
+17	usc-boats-blowers	reject	Ventilatori e voci in sala manovra
+18	usc-boats-periscope	reject	Periscopio — salita e discesa
+19	usc-boats-ballast-release	keep	Sfogo delle casse di zavorra
+20	usc-boats-ballast-explosive	keep	Soffiaggio casse — esplosivo
+21	usc-boats-ballast-quick	keep	Soffiaggio casse — rapido
+22	usc-boats-ballast-normal	keep	Soffiaggio casse — normale
+23	usc-boats-control-room	reject	Sala controllo — ambiente
+24	usc-boats-propeller	keep	Elica del sommergibile sott’acqua
+25	usc-boats-torpedo-prop	keep	Siluro in corsa — elica pulsante
+26	usc-boats-prop-churn	keep	Elica e turbolenza del sommergibile
+27	usc-metal-crusher	keep	Scafo — cigolii e lamenti brevi
+28	usc-metal-girders	keep	Scafo — acciaio in torsione
+29	usc-air-pressurized	keep	Aria pressurizzata
+30	usc-air-compressed	keep	Aria o vapore compressi
+31	usc-air-blast-07	keep	Scariche d’aria — variante A
+32	usc-air-blast-35	keep	Scariche d’aria — variante B
+33	usc-air-blast-37	keep	Scariche d’aria — variante C
+34	usc-water-big-flood	keep	Grande flooding
+35	usc-aircraft-atlas	keep	Lancio missile Atlas
+36	usc-aircraft-titan	keep	Lancio missile Titan — lungo
+37	usc-aircraft-v2	keep	Accensione razzo V2

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "generated": "2026-08-18",
+  "asset": {
+    "runtimePath": "storm-at-sea-cc0.mp3",
+    "title": "Storm at Sea",
+    "author": "Codeine",
+    "source": "https://freesound.org/people/Codeine/sounds/331435/",
+    "license": "CC0 1.0 Universal",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "1e1d18b6dcafe9ff1f1d27277cc5a9784cf836386275d1a0847e075673251cdd",
+    "channels": 2,
+    "sampleRateHz": 44100,
+    "durationSeconds": 196.702,
+    "runtimeEncoding": "MP3 Freesound preview",
+    "fileEdit": "none"
+  },
+  "runtimeUse": {
+    "loop": true,
+    "bus": "surface storm only",
+    "waterline": "gain and low-pass transfer driven by camera medium",
+    "sonarContactBusModified": false
+  }
+}

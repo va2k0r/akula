@@ -1,5 +1,12 @@
 import { samplePulseEnvelope } from "./perceptualEncoding";
 import {
+  contactPulseOnsets,
+  contactSoundProfileById,
+  loadContactSoundBuffers,
+  type ContactSoundBuffers,
+  type ContactSoundProfile,
+} from "./contactSoundBank";
+import {
   PROPELLER_PRESET,
   type MechanicalPulsePreset,
   type PropellerNoiseColor,
@@ -37,14 +44,21 @@ interface VoiceGraph {
 
 const DEFAULT_SIGNATURE: AcousticCode = [1, 2, 4];
 const DEFAULT_CYCLE_DURATION_SECONDS = 4.5;
+const CONTINUOUS_ROTOR_BED_PEAK = 0.42;
+export const CONTACT_CONTINUOUS_ROTOR_BED_GAIN = 0.34;
+export const CONTACT_CONTINUOUS_MIX_EVENT_GAIN = 0.76;
 
-/** Synthesizes three ordered, independent, phase-locked propeller components. */
+/** Renders three ordered contact components from finite one-shots or fallback synthesis. */
 export class AcousticSignatureEngine {
   private context: AudioContext | undefined;
   private readonly ownsContext: boolean;
   private readonly externalOutput: AudioNode | undefined;
   private signature: AcousticCode;
   private cycleDurationSeconds: number;
+  private readonly soundProfile: ContactSoundProfile | undefined;
+  private readonly continuousProfileMix: boolean;
+  private soundBuffers: ContactSoundBuffers | undefined;
+  private soundBuffersPromise: Promise<ContactSoundBuffers> | undefined;
   private outputStage: OutputStage | undefined;
   private noiseBank: NoiseBank | undefined;
   private activeVoice: VoiceGraph | undefined;
@@ -75,6 +89,11 @@ export class AcousticSignatureEngine {
     this.cycleDurationSeconds = validateCycleDuration(
       options.cycleDuration ?? DEFAULT_CYCLE_DURATION_SECONDS,
     );
+    this.soundProfile =
+      options.soundProfileId === undefined
+        ? undefined
+        : contactSoundProfileById(options.soundProfileId);
+    this.continuousProfileMix = options.continuousProfileMix ?? false;
   }
 
   public setSignature(code: AcousticCode): void {
@@ -118,6 +137,13 @@ export class AcousticSignatureEngine {
     this.wantsPlayback = true;
 
     const context = this.ensureRuntime();
+    if (this.soundProfile !== undefined && this.soundBuffers === undefined) {
+      this.soundBuffersPromise ??= loadContactSoundBuffers(
+        context,
+        this.soundProfile,
+      );
+      this.soundBuffers = await this.soundBuffersPromise;
+    }
     if (context.state === "closed") {
       throw new Error("The supplied AudioContext is closed.");
     }
@@ -192,7 +218,7 @@ export class AcousticSignatureEngine {
         this.externalOutput ?? this.context.destination,
       );
     }
-    if (this.noiseBank === undefined) {
+    if (this.soundProfile === undefined && this.noiseBank === undefined) {
       this.noiseBank = createNoiseBank(this.context);
     }
     return this.context;
@@ -202,14 +228,27 @@ export class AcousticSignatureEngine {
     if (
       this.context === undefined ||
       this.outputStage === undefined ||
-      this.noiseBank === undefined
+      (this.soundProfile === undefined && this.noiseBank === undefined) ||
+      (this.soundProfile !== undefined && this.soundBuffers === undefined)
     ) {
       throw new Error("The audio runtime has not been initialized.");
+    }
+    if (this.soundProfile !== undefined && this.soundBuffers !== undefined) {
+      return buildSampledVoice(
+        this.context,
+        this.outputStage.input,
+        this.soundProfile,
+        this.soundBuffers,
+        this.signature,
+        this.cycleDurationSeconds,
+        startTime,
+        this.continuousProfileMix,
+      );
     }
     return buildVoice(
       this.context,
       this.outputStage.input,
-      this.noiseBank,
+      this.noiseBank as NoiseBank,
       this.signature,
       this.cycleDurationSeconds,
       startTime,
@@ -308,6 +347,8 @@ export class AcousticSignatureEngine {
     this.outputStage?.outputGain.disconnect();
     this.outputStage = undefined;
     this.noiseBank = undefined;
+    this.soundBuffers = undefined;
+    this.soundBuffersPromise = undefined;
 
     const context = this.context;
     this.context = undefined;
@@ -350,6 +391,264 @@ function createOutputStage(
   compressor.connect(outputGain);
   outputGain.connect(destination);
   return { input, compressor, outputGain };
+}
+
+function buildSampledVoice(
+  context: AudioContext,
+  destination: AudioNode,
+  soundProfile: ContactSoundProfile,
+  soundBuffers: ContactSoundBuffers,
+  signature: AcousticCode,
+  cycleDurationSeconds: number,
+  startTime: number,
+  continuousProfileMix: boolean,
+): VoiceGraph {
+  const nodes: AudioNode[] = [];
+  const sources: AudioBufferSourceNode[] = [];
+  const masterGain = context.createGain();
+  nodes.push(masterGain);
+  masterGain.gain.setValueAtTime(0, startTime);
+  masterGain.connect(destination);
+
+  if (continuousProfileMix && signature[0] > 0) {
+    const rotorBedSource = context.createBufferSource();
+    const rotorBedHighpass = context.createBiquadFilter();
+    const rotorBedLowpass = context.createBiquadFilter();
+    const rotorBedGain = context.createGain();
+    rotorBedSource.buffer = createContinuousRotorBedBuffer(
+      context,
+      soundBuffers[0],
+      signature[0],
+      cycleDurationSeconds,
+    );
+    rotorBedSource.loop = true;
+    rotorBedSource.loopEnd = rotorBedSource.buffer.duration;
+    rotorBedHighpass.type = "highpass";
+    rotorBedHighpass.frequency.setValueAtTime(18, startTime);
+    rotorBedHighpass.Q.setValueAtTime(0.5, startTime);
+    rotorBedLowpass.type = "lowpass";
+    rotorBedLowpass.frequency.setValueAtTime(620, startTime);
+    rotorBedLowpass.Q.setValueAtTime(0.72, startTime);
+    rotorBedGain.gain.setValueAtTime(
+      CONTACT_CONTINUOUS_ROTOR_BED_GAIN,
+      startTime,
+    );
+    rotorBedSource
+      .connect(rotorBedHighpass)
+      .connect(rotorBedLowpass)
+      .connect(rotorBedGain)
+      .connect(masterGain);
+    nodes.push(rotorBedSource, rotorBedHighpass, rotorBedLowpass, rotorBedGain);
+    sources.push(rotorBedSource);
+  }
+
+  for (const componentIndex of [0, 1, 2] as const) {
+    const repetitions = signature[componentIndex];
+    if (repetitions === 0) {
+      continue;
+    }
+    const component = soundProfile.components[componentIndex];
+    const source = context.createBufferSource();
+    const componentGain = context.createGain();
+    source.buffer = createCountableCycleBuffer(
+      context,
+      soundBuffers[componentIndex],
+      repetitions,
+      cycleDurationSeconds,
+      continuousProfileMix ? 0 : component.phaseOffset,
+    );
+    source.loop = true;
+    source.loopEnd = source.buffer.duration;
+    componentGain.gain.setValueAtTime(
+      component.mixGain *
+        (continuousProfileMix ? CONTACT_CONTINUOUS_MIX_EVENT_GAIN : 1),
+      startTime,
+    );
+    source.connect(componentGain);
+    componentGain.connect(masterGain);
+    nodes.push(source, componentGain);
+    sources.push(source);
+  }
+
+  for (const source of sources) {
+    source.start(startTime);
+  }
+
+  return {
+    masterGain,
+    nodes,
+    sources,
+    startedAtContextTime: startTime,
+    retiring: false,
+    cleaned: false,
+  };
+}
+
+function createContinuousRotorBedBuffer(
+  context: BaseAudioContext,
+  source: AudioBuffer,
+  repetitions: number,
+  cycleDurationSeconds: number,
+): AudioBuffer {
+  const frameCount = Math.max(
+    1,
+    Math.round(cycleDurationSeconds * context.sampleRate),
+  );
+  const channelCount = Math.max(1, source.numberOfChannels);
+  const bed = context.createBuffer(
+    channelCount,
+    frameCount,
+    context.sampleRate,
+  );
+  for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+    const sourceSamples = source.getChannelData(
+      Math.min(channelIndex, source.numberOfChannels - 1),
+    );
+    bed
+      .getChannelData(channelIndex)
+      .set(
+        renderContinuousRotorBedSamples(
+          sourceSamples,
+          frameCount,
+          context.sampleRate,
+          repetitions,
+        ),
+      );
+  }
+  return bed;
+}
+
+/**
+ * Circular Hann overlap-add of the recorded A body. The result never inserts
+ * silence and retains a shallow shaft-rate pressure modulation, so it bridges
+ * the finite A/B/C events without inventing a fourth countable attack.
+ */
+export function renderContinuousRotorBedSamples(
+  sourceSamples: Float32Array,
+  frameCount: number,
+  sampleRate: number,
+  repetitions: number,
+): Float32Array {
+  if (sourceSamples.length < 64) {
+    throw new RangeError("The rotor-bed source is too short.");
+  }
+  if (!Number.isSafeInteger(frameCount) || frameCount < 1) {
+    throw new RangeError(
+      "The rotor-bed frame count must be a positive integer.",
+    );
+  }
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+    throw new RangeError("The rotor-bed sample rate must be positive.");
+  }
+  if (!Number.isSafeInteger(repetitions) || repetitions < 1) {
+    throw new RangeError("The rotor-bed repetition count must be positive.");
+  }
+
+  const output = new Float32Array(frameCount);
+  const weights = new Float32Array(frameCount);
+  const sourceStart = Math.round(sourceSamples.length * 0.1);
+  const sourceEnd = Math.max(
+    sourceStart + 64,
+    Math.round(sourceSamples.length * 0.72),
+  );
+  const sourceSpan = Math.min(sourceSamples.length, sourceEnd) - sourceStart;
+  const grainFrames = Math.max(
+    64,
+    Math.min(Math.round(sampleRate * 0.11), Math.floor(sourceSpan * 0.72)),
+  );
+  const hopFrames = Math.max(1, Math.floor(grainFrames / 2));
+  const maximumSourceOffset = Math.max(0, sourceSpan - grainFrames);
+  const sourceOffsetStep = Math.max(1, Math.floor(grainFrames * 0.37));
+
+  let grainIndex = 0;
+  for (let grainStart = 0; grainStart < frameCount; grainStart += hopFrames) {
+    const sourceOffset =
+      maximumSourceOffset === 0
+        ? 0
+        : (grainIndex * sourceOffsetStep) % maximumSourceOffset;
+    for (let grainFrame = 0; grainFrame < grainFrames; grainFrame += 1) {
+      const destinationIndex = (grainStart + grainFrame) % frameCount;
+      const window =
+        0.5 -
+        0.5 *
+          Math.cos((Math.PI * 2 * grainFrame) / Math.max(1, grainFrames - 1));
+      output[destinationIndex] =
+        (output[destinationIndex] ?? 0) +
+        (sourceSamples[sourceStart + sourceOffset + grainFrame] ?? 0) * window;
+      weights[destinationIndex] = (weights[destinationIndex] ?? 0) + window;
+    }
+    grainIndex += 1;
+  }
+
+  let mean = 0;
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    output[frame] = (output[frame] ?? 0) / Math.max(0.001, weights[frame] ?? 0);
+    mean += output[frame] ?? 0;
+  }
+  mean /= frameCount;
+
+  let sourcePeak = 0;
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    const shaftPhase = (Math.PI * 2 * repetitions * frame) / frameCount;
+    const pressure = 0.82 + (0.5 + 0.5 * Math.cos(shaftPhase)) * 0.18;
+    output[frame] = ((output[frame] ?? 0) - mean) * pressure;
+    sourcePeak = Math.max(sourcePeak, Math.abs(output[frame] ?? 0));
+  }
+  const scale = sourcePeak > 0 ? CONTINUOUS_ROTOR_BED_PEAK / sourcePeak : 1;
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    output[frame] = (output[frame] ?? 0) * scale;
+  }
+  return output;
+}
+
+function createCountableCycleBuffer(
+  context: BaseAudioContext,
+  oneShot: AudioBuffer,
+  repetitions: number,
+  cycleDurationSeconds: number,
+  phaseOffset: number,
+): AudioBuffer {
+  const frameCount = Math.max(
+    1,
+    Math.round(cycleDurationSeconds * context.sampleRate),
+  );
+  const channelCount = Math.max(1, oneShot.numberOfChannels);
+  const cycle = context.createBuffer(
+    channelCount,
+    frameCount,
+    context.sampleRate,
+  );
+  const onsets = contactPulseOnsets(
+    repetitions,
+    cycleDurationSeconds,
+    phaseOffset,
+  );
+
+  for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+    const sourceSamples = oneShot.getChannelData(
+      Math.min(channelIndex, oneShot.numberOfChannels - 1),
+    );
+    const cycleSamples = cycle.getChannelData(channelIndex);
+    for (const onsetSeconds of onsets) {
+      const onsetFrame = Math.round(onsetSeconds * context.sampleRate);
+      for (
+        let sampleIndex = 0;
+        sampleIndex < sourceSamples.length;
+        sampleIndex += 1
+      ) {
+        const destinationIndex = (onsetFrame + sampleIndex) % frameCount;
+        cycleSamples[destinationIndex] = Math.max(
+          -1,
+          Math.min(
+            1,
+            (cycleSamples[destinationIndex] ?? 0) +
+              (sourceSamples[sampleIndex] ?? 0),
+          ),
+        );
+      }
+    }
+  }
+  return cycle;
 }
 
 function buildVoice(

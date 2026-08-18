@@ -10,6 +10,8 @@ export interface AcousticSignatureScopeOptions {
   readonly signalQuality?: number;
   readonly historySeconds?: number;
   readonly samplesPerSecond?: number;
+  /** Clears the canvas instead of painting a scope plate behind the trace. */
+  readonly transparentBackground?: boolean;
   /** Native audio-clock time keeps the trace aligned with audible modulation. */
   readonly playbackTime?: () => number | undefined;
 }
@@ -23,13 +25,48 @@ const DEFAULT_CYCLE_DURATION = 4.5;
 const DEFAULT_SIGNAL_QUALITY = 1;
 const DEFAULT_HISTORY_SECONDS = 4.8;
 const DEFAULT_SAMPLES_PER_SECOND = 48;
+const HISTOGRAM_VERTICAL_PADDING = 5;
 
-/** A short, scrolling trace of the inseparable combined modulation envelope. */
+export interface SymmetricHistogramBarBounds {
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/**
+ * New samples enter at the right edge. Adding another sample moves every
+ * existing sample one slot to the left.
+ */
+export function scrollingHistogramX(
+  pointIndex: number,
+  pointCount: number,
+  maximumPoints: number,
+  width: number,
+): number {
+  const slotsFromRight = pointCount - pointIndex - 0.5;
+  return width - (slotsFromRight / maximumPoints) * width;
+}
+
+/** Equal positive extent above and below the central time axis. */
+export function symmetricHistogramBarBounds(
+  level: number,
+  height: number,
+): SymmetricHistogramBarBounds {
+  const center = height * 0.5;
+  const halfHeight =
+    clampUnit(level) * Math.max(0, center - HISTOGRAM_VERTICAL_PADDING);
+  return Object.freeze({
+    top: center - halfHeight,
+    bottom: center + halfHeight,
+  });
+}
+
+/** A short, right-to-left histogram of the constructive A+B+C envelope. */
 export class AcousticSignatureScope {
   private readonly context: CanvasRenderingContext2D;
   private readonly resizeObserver: ResizeObserver;
   private readonly historySeconds: number;
   private readonly samplesPerSecond: number;
+  private readonly transparentBackground: boolean;
   private readonly playbackTime: (() => number | undefined) | undefined;
   private readonly points: ScopePoint[] = [];
   private signature: AcousticCode = DEFAULT_SIGNATURE;
@@ -47,7 +84,7 @@ export class AcousticSignatureScope {
     private readonly canvas: HTMLCanvasElement,
     options: AcousticSignatureScopeOptions = {},
   ) {
-    const context = canvas.getContext("2d", { alpha: false });
+    const context = canvas.getContext("2d", { alpha: true });
     if (context === null) {
       throw new Error("Canvas 2D is unavailable.");
     }
@@ -63,6 +100,7 @@ export class AcousticSignatureScope {
       options.samplesPerSecond ?? DEFAULT_SAMPLES_PER_SECOND,
       "Sample rate",
     );
+    this.transparentBackground = options.transparentBackground ?? false;
     this.playbackTime = options.playbackTime;
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -213,42 +251,62 @@ export class AcousticSignatureScope {
     const { context, cssWidth: width, cssHeight: height } = this;
 
     context.globalAlpha = 1;
-    context.fillStyle = background;
-    context.fillRect(0, 0, width, height);
-
-    if (this.points.length < 2) {
-      return;
+    if (this.transparentBackground) {
+      context.clearRect(0, 0, width, height);
+    } else {
+      context.fillStyle = background;
+      context.fillRect(0, 0, width, height);
     }
 
     const maximumPoints = Math.ceil(
       this.historySeconds * this.samplesPerSecond,
     );
-    const horizontalOffset =
-      width - (this.points.length / maximumPoints) * width;
-    const lineWidth = 1.25 + (1 - this.signalQuality) * 2.2;
     context.strokeStyle = signal;
-    context.lineWidth = lineWidth;
-    context.lineCap = "round";
-    context.lineJoin = "round";
+    context.lineWidth = 1;
+    context.globalAlpha = 0.2 + this.signalQuality * 0.16;
+    context.beginPath();
+    context.moveTo(0, height * 0.5 + 0.5);
+    context.lineTo(width, height * 0.5 + 0.5);
+    context.stroke();
 
-    for (let index = 1; index < this.points.length; index += 1) {
-      const previous = this.points[index - 1];
-      const current = this.points[index];
-      if (previous === undefined || current === undefined) {
+    context.globalAlpha = 0.12 + this.signalQuality * 0.08;
+    context.beginPath();
+    context.moveTo(width - 0.5, 0);
+    context.lineTo(width - 0.5, height);
+    context.stroke();
+
+    if (this.points.length === 0) {
+      context.globalAlpha = 1;
+      return;
+    }
+
+    const slotWidth = width / maximumPoints;
+    const barWidth = Math.max(0.75, slotWidth * 0.72);
+    context.fillStyle = signal;
+
+    for (let index = 0; index < this.points.length; index += 1) {
+      const point = this.points[index];
+      if (point === undefined || point.constructiveEnvelope <= 0.002) {
         continue;
       }
 
-      const previousX =
-        horizontalOffset + ((index - 1) / maximumPoints) * width;
-      const currentX = horizontalOffset + (index / maximumPoints) * width;
-      const previousY = envelopeToY(previous.combinedEnvelope, height);
-      const currentY = envelopeToY(current.combinedEnvelope, height);
-      context.globalAlpha =
-        0.22 + ((previous.traceStrength + current.traceStrength) / 2) * 0.7;
-      context.beginPath();
-      context.moveTo(previousX, previousY);
-      context.lineTo(currentX, currentY);
-      context.stroke();
+      const x = scrollingHistogramX(
+        index,
+        this.points.length,
+        maximumPoints,
+        width,
+      );
+      const bounds = symmetricHistogramBarBounds(
+        point.constructiveEnvelope,
+        height,
+      );
+      context.globalAlpha = 0.18 + point.traceStrength * 0.78;
+      context.fillRect(
+        x - barWidth * 0.5,
+        bounds.top,
+        barWidth,
+        bounds.bottom - bounds.top,
+      );
     }
 
     context.globalAlpha = 1;
@@ -261,10 +319,6 @@ export class AcousticSignatureScope {
   }
 }
 
-function envelopeToY(envelope: number, height: number): number {
-  return height * (0.82 - envelope * 0.64);
-}
-
 function codesMatch(left: AcousticCode, right: AcousticCode): boolean {
   return left.every((value, index) => value === right[index]);
 }
@@ -274,4 +328,8 @@ function assertPositiveFinite(value: number, name: string): number {
     throw new RangeError(`${name} must be a positive finite number.`);
   }
   return value;
+}
+
+function clampUnit(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }

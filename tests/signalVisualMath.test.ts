@@ -22,6 +22,10 @@ describe("sampleAcousticSignatureVisual", () => {
       atStart.combinedEnvelope,
       12,
     );
+    expect(afterOneCycle.constructiveEnvelope).toBeCloseTo(
+      atStart.constructiveEnvelope,
+      12,
+    );
     expect(afterOneCycle.traceStrength).toBe(atStart.traceStrength);
     expect(afterOneCycle.uncertainty).toBe(atStart.uncertainty);
   });
@@ -39,7 +43,33 @@ describe("sampleAcousticSignatureVisual", () => {
         expectedCombinedEnvelope([1, 2, 4], elapsedSeconds, 3.6),
         12,
       );
+      expect(sample.constructiveEnvelope).toBeCloseTo(
+        expectedConstructiveEnvelope([1, 2, 4], elapsedSeconds, 3.6),
+        12,
+      );
     }
+  });
+
+  it("adds A, B and C constructively at coincident beats", () => {
+    const allComponents = sampleAcousticSignatureVisual(
+      [1, 2, 4],
+      4,
+      0,
+      1,
+      0,
+    ).constructiveEnvelope;
+    const isolatedComponents = [
+      sampleAcousticSignatureVisual([1, 0, 0], 4, 0, 1, 0).constructiveEnvelope,
+      sampleAcousticSignatureVisual([0, 2, 0], 4, 0, 1, 0).constructiveEnvelope,
+      sampleAcousticSignatureVisual([0, 0, 4], 4, 0, 1, 0).constructiveEnvelope,
+    ] as const;
+
+    expect(allComponents).toBeCloseTo(
+      isolatedComponents.reduce((sum, level) => sum + level, 0),
+      12,
+    );
+    expect(allComponents).toBe(1);
+    expect(isolatedComponents.every((level) => level > 0)).toBe(true);
   });
 
   it("shows the C, B+C, C crests between consecutive A crests", () => {
@@ -99,6 +129,13 @@ describe("sampleAcousticSignatureVisual", () => {
           sample.combinedEnvelope === clearSamples[index]?.combinedEnvelope,
       ),
     ).toBe(true);
+    expect(
+      poorSamples.every(
+        (sample, index) =>
+          sample.constructiveEnvelope ===
+          clearSamples[index]?.constructiveEnvelope,
+      ),
+    ).toBe(true);
   });
 
   it("validates code, time, duration, quality and sample index", () => {
@@ -147,15 +184,7 @@ function expectedCombinedEnvelope(
   elapsedSeconds: number,
   cycleDuration: number,
 ): number {
-  const weights = [
-    PROPELLER_PRESET.modulation.componentA.gainDepth * 2 +
-      PROPELLER_PRESET.bed.gain *
-        (1 - PROPELLER_PRESET.modulation.componentA.bedFloorScale) +
-      PROPELLER_PRESET.hull.flowGain *
-        (1 - PROPELLER_PRESET.hull.flowFloorScale),
-    PROPELLER_PRESET.pump.gain * (1 - PROPELLER_PRESET.pump.floorScale),
-    PROPELLER_PRESET.blade.gain * (1 - PROPELLER_PRESET.blade.floorScale),
-  ] as const;
+  const weights = modulationWeights();
   let activeWeight = 0;
   let combinedLevel = 0;
   for (const componentIndex of [0, 1, 2] as const) {
@@ -171,13 +200,52 @@ function expectedCombinedEnvelope(
         repetitions,
         cycleDuration,
         elapsedSeconds,
-        [
-          PROPELLER_PRESET.modulation.componentA.pulseShapePower,
-          PROPELLER_PRESET.modulation.componentB.pulseShapePower,
-          PROPELLER_PRESET.modulation.componentC.pulseShapePower,
-        ][componentIndex] ??
-          PROPELLER_PRESET.modulation.componentA.pulseShapePower,
+        pulseShapePowers()[componentIndex],
       );
   }
   return activeWeight === 0 ? 0 : combinedLevel / activeWeight;
+}
+
+function expectedConstructiveEnvelope(
+  code: readonly [number, number, number],
+  elapsedSeconds: number,
+  cycleDuration: number,
+): number {
+  const weights = modulationWeights();
+  let combinedLevel = 0;
+  for (const componentIndex of [0, 1, 2] as const) {
+    const repetitions = code[componentIndex];
+    if (repetitions === 0) {
+      continue;
+    }
+    combinedLevel +=
+      weights[componentIndex] *
+      samplePulseEnvelope(
+        repetitions,
+        cycleDuration,
+        elapsedSeconds,
+        pulseShapePowers()[componentIndex],
+      );
+  }
+  return combinedLevel / weights.reduce((sum, weight) => sum + weight, 0);
+}
+
+function modulationWeights(): readonly [number, number, number] {
+  return [
+    PROPELLER_PRESET.modulation.componentA.gainDepth * 2 +
+      PROPELLER_PRESET.bed.gain *
+        (1 - PROPELLER_PRESET.modulation.componentA.bedFloorScale) +
+      PROPELLER_PRESET.hull.flowGain *
+        (1 - PROPELLER_PRESET.hull.flowFloorScale),
+    PROPELLER_PRESET.pump.gain * (1 - PROPELLER_PRESET.pump.floorScale),
+    PROPELLER_PRESET.blade.gain * (1 - PROPELLER_PRESET.blade.floorScale),
+  ] as const;
+}
+
+function pulseShapePowers(): readonly [number, number, number] {
+  return [
+    PROPELLER_PRESET.modulation.componentA.pulseShapePower,
+    PROPELLER_PRESET.modulation.componentB.pulseShapePower,
+    PROPELLER_PRESET.modulation.componentC.pulseShapePower,
+  ];
 }

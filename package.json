@@ -1,12 +1,19 @@
 {
   "name": "akula",
   "version": "0.1.0",
+  "description": "Akula 971 sonar-first Project 971 submarine prototype",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/va2k0r/akula.git"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "preview": "vite preview --host 127.0.0.1",
     "build": "vite build",
+    "audio:contact-bank": "node scripts/generate-contact-sound-bank.mjs",
+    "audio:hull-stress-bank": "node scripts/generate-hull-stress-bank.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -17,6 +24,8 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "26.2.0",
+    "@types/three": "^0.185.4",
+    "@wasm-audio-decoders/ogg-vorbis": "0.1.20",
     "eslint": "10.8.1",
     "globals": "17.11.0",
     "prettier": "3.9.6",
@@ -27,5 +36,8 @@
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
   }
 }

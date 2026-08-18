@@ -68,7 +68,7 @@ describe("smooth envelope primitives", () => {
 describe("propeller carrier separation", () => {
   it("keeps the original underwater propulsion sources and filters", () => {
     expect(PROPELLER_PRESET.bed).toMatchObject({
-      gain: 0.42,
+      gain: 0.26,
       highpassHz: 16,
       lowpassHz: 470,
     });
@@ -76,7 +76,7 @@ describe("propeller carrier separation", () => {
       fundamentalHz: 31,
       overtoneHz: 49,
       lowpassHz: 175,
-      flowGain: 0.52,
+      flowGain: 0.32,
       flowHighpassHz: 58,
       flowLowpassHz: 460,
     });
@@ -91,6 +91,12 @@ describe("propeller carrier separation", () => {
       lowpassHz: 680,
       fundamentalHz: 165,
       overtoneHz: 248,
+    });
+    expect(PROPELLER_PRESET.output.gain).toBe(0.56);
+    expect(PROPELLER_PRESET.modulation).toMatchObject({
+      componentA: { bedFloorScale: 0.06, pulseShapePower: 3 },
+      componentB: { pulseShapePower: 6 },
+      componentC: { pulseShapePower: 10 },
     });
   });
 

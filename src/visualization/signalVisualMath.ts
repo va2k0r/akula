@@ -6,6 +6,12 @@ import type { AcousticCode } from "../audio/types";
 export interface AcousticVisualSample {
   /** The inseparable sum of all three low-frequency modulation envelopes. */
   readonly combinedEnvelope: number;
+  /**
+   * Positive A+B+C contribution for the countable volume histogram. Unlike
+   * the normalized envelope above, coincident components always make a taller
+   * peak and can never cancel one another.
+   */
+  readonly constructiveEnvelope: number;
   readonly traceStrength: number;
   readonly uncertainty: number;
 }
@@ -62,8 +68,15 @@ export function sampleAcousticSignatureVisual(
   }
   const clearCombinedEnvelope =
     activeWeight === 0 ? 0 : combinedLevel / activeWeight;
+  const totalModulationWeight = modulationWeights.reduce(
+    (total, weight) => total + weight,
+    0,
+  );
   const uncertainty = 1 - signalQuality;
   const combinedEnvelope = clampUnit(clearCombinedEnvelope);
+  const constructiveEnvelope = clampUnit(
+    totalModulationWeight === 0 ? 0 : combinedLevel / totalModulationWeight,
+  );
   const traceStrength = clampUnit(
     0.28 +
       signalQuality * 0.72 +
@@ -72,6 +85,7 @@ export function sampleAcousticSignatureVisual(
 
   return Object.freeze({
     combinedEnvelope,
+    constructiveEnvelope,
     traceStrength,
     uncertainty,
   });

@@ -3,3 +3,35 @@ dist/
 coverage/
 .DS_Store
 *.log
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+.idea/
+.vscode/
+playwright-report/
+test-results/
+artifacts/
+
+# Large acquisition and research libraries stay on the development machine.
+# Keep their compact provenance/catalog files in Git.
+assets/research/**
+!assets/research/**/
+!assets/research/**/CATALOG.md
+!assets/research/**/MANIFEST.tsv
+!assets/research/**/CHECKSUMS.sha256
+!assets/research/**/SELECTION.tsv
+!assets/research/**/TECHNICAL_QA.tsv
+!assets/research/**/README*
+!assets/research/**/SOURCE*
+
+# Runtime assets are versioned under public/. Retain only source inputs needed
+# for deterministic contact-audio and MAREANO regeneration, plus provenance.
+assets/source/**
+!assets/source/**/
+!assets/source/**/SOURCE.md
+!assets/source/**/LICENSE*
+!assets/source/contact-recordings/**
+!assets/source/mareano-shelf-east/**
