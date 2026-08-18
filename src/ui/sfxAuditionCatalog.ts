@@ -1,3 +1,5 @@
+import { publicAssetPath } from "../game/PublicAssetPath";
+
 export type SfxAuditionDecision = "keep" | "reject" | "undecided";
 
 export interface SfxAuditionItem {
@@ -10,8 +12,9 @@ export interface SfxAuditionItem {
   readonly durationSeconds: number;
 }
 
-const RESEARCH_ROOT =
-  "/assets/research/submarine-sfx-2026-08-17/masters/usc-sound-effect-archive";
+const RESEARCH_ROOT = publicAssetPath(
+  "assets/research/submarine-sfx-2026-08-17/masters/usc-sound-effect-archive",
+);
 
 export const SFX_AUDITION_ITEMS = [
   item(

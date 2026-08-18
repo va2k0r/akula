@@ -32,6 +32,7 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { NorthSeaEnvironmentState } from "./NorthSeaEnvironment";
 import type { OceanSurfaceSample } from "./OceanSpectrum";
+import { publicAssetPath } from "./PublicAssetPath";
 
 export type NorthSeaTrafficKind =
   "tanker" | "bulk-carrier" | "trawler" | "supply-vessel" | "military-patrol";
@@ -86,7 +87,7 @@ interface RigActor {
 const RIG_POSITION = Object.freeze({ x: 1_460, z: -1_080 });
 const WAKE_SAMPLE_COUNT = 48;
 const WAKE_SAMPLE_INTERVAL_SECONDS = 0.42;
-const SURFACE_MODEL_DIRECTORY = "/assets/models/north-sea";
+const SURFACE_MODEL_DIRECTORY = publicAssetPath("assets/models/north-sea");
 
 export const NORTH_SEA_TRAFFIC_SPECS: readonly NorthSeaTrafficSpec[] =
   Object.freeze([

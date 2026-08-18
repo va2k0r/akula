@@ -32,6 +32,7 @@ import {
   propulsionStartleStrength,
   type MarineLifeDisturbanceState,
 } from "./MarineLifeDisturbance";
+import { publicAssetPath } from "./PublicAssetPath";
 import { channelWallAt, terrainHeightAt } from "./WorldGeometry";
 
 interface FishSchoolSpec {
@@ -73,7 +74,9 @@ interface CoralPlacement {
 
 const FISH_FORWARD = new Vector3(0, 0, 1);
 const WORLD_UP = new Vector3(0, 1, 0);
-const FISH_ATLAS_PATH = "/assets/textures/fauna/north-atlantic-fish-atlas.png";
+const FISH_ATLAS_PATH = publicAssetPath(
+  "assets/textures/fauna/north-atlantic-fish-atlas.png",
+);
 const FISH_DETAIL_FADE_START_METERS = 10;
 const FISH_DETAIL_FADE_END_METERS = 24;
 const FISH_RESTART_STARTLE_RADIUS_METERS = 92;
@@ -81,8 +84,10 @@ const FISH_RUNNING_AVOIDANCE_RADIUS_METERS = 54;
 const FISH_MAX_STARTLE_SPEED_METERS_PER_SECOND = 14;
 const FISH_MAX_ESCAPE_SPEED_METERS_PER_SECOND = 16;
 const FISH_ESCAPE_VELOCITY_DAMPING = 0.48;
-const CORAL_MODEL_PATH = "/assets/models/lophelia/lophelia-20k.glb";
-const DRACO_DECODER_PATH = "/assets/draco/";
+const CORAL_MODEL_PATH = publicAssetPath(
+  "assets/models/lophelia/lophelia-20k.glb",
+);
+const DRACO_DECODER_PATH = publicAssetPath("assets/draco/");
 const PLANKTON_PER_COLONY = 12;
 
 /**

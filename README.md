@@ -1,5 +1,7 @@
 # Akula 971 — Frostbite Canyon prototype
 
+[Play Akula 971 in the browser](https://va2k0r.github.io/akula/).
+
 The first playable Akula 971 vertical slice tests one question: can the accepted
 acoustic-code system support a dramatic, gamepad-first nuclear-submarine action
 game in a spacious, cold North Sea 3D map?
